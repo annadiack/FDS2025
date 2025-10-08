@@ -140,13 +140,13 @@ def write_dot(graph: nx.DiGraph, path: str):
 
 
 def draw_png(graph: nx.DiGraph, path: str, title: str):
+    global plt
     if plt is None:
-        raise RuntimeError("matplotlib not available to draw PNGs.")
-    import matplotlib.pyplot as plt
-    try:
-        pos = nx.nx_pydot.graphviz_layout(graph, prog="dot")
-    except Exception:
-        pos = nx.spring_layout(graph, seed=42)
+        print(f"[WARN] matplotlib not available; skipping PNG '{path}'. Install 'matplotlib' to enable.")
+        return
+
+    pos = nx.spring_layout(graph, seed=42)
+    plt.figure(figsize=(10, 7))
     nx.draw_networkx_nodes(graph, pos, node_size=800)
     nx.draw_networkx_labels(graph, pos, font_size=9)
     nx.draw_networkx_edges(graph, pos, arrows=True, arrowstyle='->')
