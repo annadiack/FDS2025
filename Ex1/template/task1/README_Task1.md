@@ -1,0 +1,59 @@
+
+# Task 1 – Vector Clocks & Partial Order Graphs (FDS FS25)
+
+This `main.py` solves **Exercise 1 – Task 1**:
+- Computes **vector clocks** from a Git-like JSON DAG
+- Builds the **partial order graph** (all causal edges)
+- Produces the **transitive reduction** (minimal edges / Hasse diagram)
+- Optional PNG renderings
+
+## Input format
+`data.json` like:
+```json
+{
+  "B1": {
+    "1111": [],
+    "12f3": ["1111"],
+    "f432": ["12f3","2101"]
+  },
+  "B2": {
+    "2101": ["1111"]
+  },
+  "B3": {
+    "9634": ["2101"],
+    "e13b": ["f432","9634"]
+  }
+}
+```
+
+Each **branch** is a process; each **commit** is an event; values are **parent commits**.
+
+## Install
+```bash
+pip install networkx matplotlib pydot
+```
+
+> PNG rendering uses Graphviz if available; otherwise it falls back to a spring layout.  
+> For DOT export you need `pydot` (and Graphviz for best layout): https://graphviz.org/
+
+## Run
+Vector clocks only:
+```bash
+python main.py --in data.json --out vector_clocks.json
+```
+
+Vector clocks + graphs (DOT + PNG):
+```bash
+python main.py --in data.json --out vector_clocks.json   --dot po_full.dot --dot-min po_reduced.dot   --png po_full.png --png-min po_reduced.png
+```
+
+## Definitions
+- **Vector clock update**: `VC(x) = max(VC(parent_i))` (elementwise, `0..0` if no parents), then `+1` on the **own branch** component.
+- **Causality**: `a ≺ b  ⇔  a <= b` elementwise **and** `a ≠ b`.
+- **Full PO graph**: Edge `a→b` for every causally related pair.
+- **Minimal graph**: **Transitive reduction** of the PO graph (Hasse diagram).
+
+## Output
+- `vector_clocks.json`: `{ "Commit": [vc...] }`
+- `po_full.dot` / `po_full.png`: all causal edges
+- `po_reduced.dot` / `po_reduced.png`: minimal edges (no transitives)
