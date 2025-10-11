@@ -22,9 +22,9 @@
         register_response = data_stub.RegisterUser(user_credentials)
     
         if register_response.success:
-            print("   ✓ User registered successfully")
+            print("   User registered successfully")
         else:
-            print("   ✗ User registration failed (might already exist)")
+            print("   User registration failed (might already exist)")
     
         # Step 2: Store data
         print("\n2. Storing data...")
@@ -36,9 +36,9 @@
         store_response = data_stub.StoreData(store_request)
     
         if store_response.success:
-            print("   ✓ Data stored successfully")
+            print("   Data stored successfully")
         else:
-            print("   ✗ Data storage failed - stopping execution")
+            print("   Data storage failed - stopping execution")
             return
     
         # Step 3: Generate passcode
@@ -47,9 +47,9 @@
     
         if passcode_response.code:
             passcode = passcode_response.code
-            print(f"   ✓ Passcode generated: {passcode}")
+            print(f"  Passcode generated: {passcode}")
         else:
-            print("   ✗ Passcode generation failed - stopping execution")
+            print("   Passcode generation failed - stopping execution")
             return
     
         # Step 4: Get hash from Hash Server
@@ -71,6 +71,9 @@
         print(f"Original data: '{data_to_store}'")
         print(f"Calculated hash: {hash_response.hash}")
         print("===============")
+
+        data_channel.close()
+        hash_channel.close()
 
     if __name__ == '__main__':
         run()
