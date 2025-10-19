@@ -62,11 +62,9 @@ class CLS:
                 other_list.elements[element]['remove'] = merged_remove
     
     def get_items(self):
-        """Get all items currently in the set"""
         return [elem for elem in self.elements if self.contains(elem)]
     
     def __str__(self):
-        """String representation of the set"""
         items = self.get_items()
         return f"CLS({items})"
     
@@ -119,4 +117,5 @@ if __name__ == '__main__':
     print(f"Alice Potato: add={alice_list.elements.get('Potato', {}).get('add', 0)}, remove={alice_list.elements.get('Potato', {}).get('remove', 0)}")
     print(f"Bob Potato: add={bob_list.elements.get('Potato', {}).get('add', 0)}, remove={bob_list.elements.get('Potato', {}).get('remove', 0)}")
     
+
     print("\nBob's list contains 'Potato'?", bob_list.contains('Potato'))
