@@ -4,7 +4,7 @@
 
 """
 FDS FS25 – Exercise 1, Task 1 (Vector Clocks & Partial Order Graphs)
-Author:Anna, Ehsan, Harshit, Gopal
+Author:Anna, Ehsan, Harshith, Gopal
 Python 3
 
 Usage examples:
