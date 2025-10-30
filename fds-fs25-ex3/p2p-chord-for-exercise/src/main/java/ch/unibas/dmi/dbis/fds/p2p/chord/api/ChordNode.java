@@ -1,221 +1,170 @@
-package ch.unibas.dmi.dbis.fds.p2p.chord.api;
+package ch.unibas.dmi.dbis.fds.p2p.chord.impl;
 
+import ch.unibas.dmi.dbis.fds.p2p.chord.api.*;
 import ch.unibas.dmi.dbis.fds.p2p.chord.api.data.Identifier;
+import ch.unibas.dmi.dbis.fds.p2p.chord.api.data.IdentifierCircle;
+import ch.unibas.dmi.dbis.fds.p2p.chord.api.data.IdentifierCircularInterval;
+
+import java.util.Map;
+import java.util.Optional;
 
 /**
- * This interface defines the behaviour exposed by a {@link ChordNode} in a {@link ChordNetwork}
- *
- * [1] Ion Stoica, Robert Morris, David Karger, M. Frans Kaashoek, and Hari Balakrishnan. 2001.
- *     Chord: A scalable peer-to-peer lookup service for internet applications.
- *     In Proceedings of the 2001 conference on Applications, technologies, architectures, and protocols for computer communications (SIGCOMM '01). ACM, New York, NY, USA, 149-160
- *
- * @author Loris Sauter & Ralph Gasser
+ * Static-mode Chord peer (Figure 6) – Task 1 solution:
+ * - joinAndUpdate (bootstrapping + update_others + data move)
+ * - routing: findSuccessor / findPredecessor / closestPrecedingFinger
+ * - finger maintenance: updateFingerTable
+ * - key placement: lookupNodeForItem
  */
-public interface ChordNode extends Node {
+public class ChordPeer extends AbstractChordPeer {
 
-  /**
-   * Returns this {@link ChordNode}'s identifier
-   *
-   * @return The identifier of this {@link ChordNode}
-   */
-  Identifier getIdentifier();
+    public ChordPeer(Identifier id, ChordNetwork network) {
+        super(id, network);
+    }
 
-  /**
-   * Returns a reference to this {@link ChordNode}'s {@link FingerTable}
-   *
-   * @return This {@link ChordNode}'s {@link FingerTable}
-   */
-  FingerTable getFingerTable();
+    /* ------------------ Routing (Figure 4) ------------------ */
 
-  /**
-   * Convenience method (shortcut) for {@link #getIdentifier()}
-   *
-   * @return The identifier of this {@link ChordNode}
-   */
-  default Identifier id() {
-    return getIdentifier();
-  }
+    @Override
+    public ChordNode findSuccessor(ChordNode caller, Identifier id) {
+        ChordNode n0 = findPredecessor(caller, id);
+        return n0.successor();
+    }
 
-  /**
-   * Convenience method (shortcut) for {@link #getFingerTable()}
-   *
-   * @return This {@link ChordNode}'s {@link FingerTable}
-   * @see FingerTable
-   */
-  default FingerTable finger() {
-    return getFingerTable();
-  }
+    @Override
+    public ChordNode findPredecessor(ChordNode caller, Identifier id) {
+        ChordNode n = this;
+        // while id ∉ (n, n.successor] on the identifier circle
+        while (!inRightClosedInterval(id, n.id(), n.successor().id())) {
+            n = n.closestPrecedingFinger(this, id);
+        }
+        return n;
+    }
 
-  /**
-   * Asks this {@link ChordNode} to find {@code of}'s successor {@link ChordNode}.
-   *
-   * Defined in [1], Figure 4
-   *
-   * @param caller The calling {@link ChordNode}. Used for simulation - not part of the actual chord definition.
-   * @param of The {@link ChordNode} for which to lookup the successor
-   * @return The successor of the node {@code of} from this {@link ChordNode}'s point of view
-   */
-  default ChordNode findSuccessor(ChordNode caller, ChordNode of){
-    return findSuccessor(caller, of.getIdentifier());
-  }
+    @Override
+    public ChordNode closestPrecedingFinger(ChordNode caller, Identifier id) {
+        final int m = finger().size();
+        for (int i = m; i >= 1; i--) {
+            Optional<ChordNode> fi = finger().node(i);
+            if (fi.isPresent()) {
+                ChordNode c = fi.get();
+                // c ∈ (n, id) ?
+                if (inOpenInterval(c.id(), this.id(), id)) {
+                    return c;
+                }
+            }
+        }
+        return this;
+    }
 
-  /**
-   * Asks this {@link ChordNode} to find {@code id}'s successor {@link ChordNode}.
-   *
-   * Defined in [1], Figure 4
-   *
-   * @param caller The calling {@link ChordNode}. Used for simulation - not part of the actual chord definition.
-   * @param id The {@link Identifier} for which to lookup the successor. Does not need to be the ID of an actual {@link ChordNode}!
-   * @return The successor of the node {@code id} from this {@link ChordNode}'s point of view
-   */
-  ChordNode findSuccessor(ChordNode caller, Identifier id);
+    /* ------------------ Static join (Figure 6) ------------------ */
 
-  /**
-   *  Asks this {@link ChordNode} to find {@code of}'s predecessor {@link ChordNode}
-   *
-   * Defined in [1], Figure 4
-   *
-   * @param caller The calling {@link ChordNode}. Used for simulation - not part of the actual chord definition.
-   * @param of The {@link ChordNode} for which to lookup the predecessor.
-   * @return The predecessor of or the node {@code of} from this {@link ChordNode}'s point of view
-   */
-  default ChordNode findPredecessor(ChordNode caller, ChordNode of){
-    return findPredecessor(caller, of.getIdentifier());
-  }
+    @Override
+    public synchronized void joinAndUpdate(ChordNode nprime) {
+        final int m = finger().size();
+        final IdentifierCircle<Identifier> circle = getNetwork().getIdentifierCircle();
 
-  /**
-   * Asks this {@link ChordNode} to find {@code id}'s predecessor {@link ChordNode}
-   *
-   * Defined in [1], Figure 4
-   *
-   * @param caller The calling {@link ChordNode}. Used for simulation - not part of the actual chord definition.
-   * @param id The {@link Identifier} for which to lookup the predecessor. Does not need to be the ID of an actual {@link ChordNode}!
-   * @return The predecessor of or the node {@code of} from this {@link ChordNode}'s point of view
-   */
-  ChordNode findPredecessor(ChordNode caller, Identifier id);
+        if (nprime == null) {
+            // First node in the network (bootstrap)
+            for (int i = 1; i <= m; i++) {
+                ((AbstractChordPeer.ChordFingerTable) finger()).setNode(i, this);
+            }
+            setPredecessor(this);
+        } else {
+            // Initialize successor from existing network
+            ChordNode succ = nprime.findSuccessor(this, this.id());
+            ((AbstractChordPeer.ChordFingerTable) finger()).setNode(1, succ);
+            setPredecessor(succ.predecessor());
+            succ.setPredecessor(this);
 
-  /**
-   * Return the closest finger preceding the {@link ChordNode} {@code of}
-   *
-   * Defined in [1], Figure 4
-   *
-   * @param caller The calling {@link ChordNode}. Used for simulation - not part of the actual chord definition.
-   * @param of The {@link ChordNode} of which the closest preceding finger is searched for
-   * @return The closest preceding finger of the node {@code of} from this node's point of view
-   */
-  default ChordNode closestPrecedingFinger(ChordNode caller, ChordNode of){
-    return closestPrecedingFinger(caller, of.getIdentifier());
-  }
+            // Build full finger table deterministically (static case)
+            for (int i = 2; i <= m; i++) {
+                Identifier start = circle.getIdentifierAt(finger().start(i));
+                ChordNode fingerI = nprime.findSuccessor(this, start);
+                ((AbstractChordPeer.ChordFingerTable) finger()).setNode(i, fingerI);
+            }
 
-  /**
-   * Return the closest finger preceding the  {@code id}
-   *
-   * Defined in [1], Figure 4
-   *
-   * @param caller The calling {@link ChordNode}. Used for simulation - not part of the actual chord definition.
-   * @param id The {@link Identifier} for which the closest preceding finger is looked up.
-   * @return The closest preceding finger of the node {@code of} from this node's point of view
-   */
-  ChordNode closestPrecedingFinger(ChordNode caller, Identifier id);
+            // Update others (Figure 6) – corrected variant
+            updateOthers();
 
-  /**
-   * Convenience method (shortcut) for the first finger of this {@link ChordNode} - its successor.
-   *
-   * Defined in [1], Figure 6
-   *
-   * @return The first entry in the finger table of this node, thus this {@link ChordNode}'s successor.
-   */
-  default ChordNode successor(){
-    return finger().successor();
-  }
+            // Move keys that now belong to this node from my successor
+            moveKeysFromSuccessor();
+        }
+    }
 
-  /**
-   * Returns the predecessor of this {@link ChordNode}.
-   *
-   * @return Preceding {@link ChordNode} of this {@link ChordNode}
-   */
-  ChordNode predecessor();
+    private void updateOthers() {
+        final int m = finger().size();
+        final IdentifierCircle<Identifier> circle = getNetwork().getIdentifierCircle();
+        for (int i = 1; i <= m; i++) {
+            int offset = (int) Math.pow(2, i - 1);
+            int idx = (this.id().getIndex() - offset);
+            // wrap modulo 2^m
+            int size = (int) Math.pow(2, m);
+            if (idx < 0) idx += size;
+            Identifier idToSearch = circle.getIdentifierAt(idx);
+            ChordNode p = findPredecessor(this, idToSearch);
+            // propagate along predecessors while our id still fits the i-th interval at p
+            // (handles the 2-node bootstrap edge-case)
+            ChordNode cur = p;
+            while (true) {
+                cur.updateFingerTable(this, i);
+                ChordNode prev = cur.predecessor();
+                if (prev == null || prev == cur) break;
+                // Stop if at prev the interval for i no longer accepts "this"
+                IdentifierCircularInterval intervalPrev = prev.finger().interval(i);
+                if (!intervalPrev.containsInclusiveLeft(this.id())) break;
+                cur = prev;
+            }
+        }
+    }
 
-  /**
-   * Sets the predecessor of this {@link ChordNode}.
-   *
-   * @param node New value of the {@link ChordNode}.
-   */
-  void setPredecessor(ChordNode node);
+    @Override
+    public synchronized void updateFingerTable(ChordNode s, int i) {
+        // If s is the i-th finger of this, update finger[i] and also predecessor chain as in Fig. 6
+        Optional<ChordNode> maybeFi = finger().node(i);
+        ChordNode fi = maybeFi.orElse(this.successor()); // be robust during early join
 
-  /**
-   * Called on this {@link ChordNode} if it wishes to join the {@link ChordNetwork}. {@code nprime} references another {@link ChordNode}
-   * that is already member of the {@link ChordNetwork}.
-   *
-   * Required for static {@link ChordNetwork} mode. Since no stabilization takes place in this mode, the joining node must make all
-   * the necessary setup.
-   *
-   * Defined in [1], Figure 6
-   *
-   * @param nprime Arbitrary {@link ChordNode} that is part of the {@link ChordNetwork} this {@link ChordNode} wishes to join.
-   */
-  void joinAndUpdate(ChordNode nprime);
+        IdentifierCircularInterval interval = finger().interval(i);
+        // The well-known correction: left-inclusive on the interval test
+        if (interval.containsInclusiveLeft(s.id())) {
+            ((AbstractChordPeer.ChordFingerTable) finger()).setNode(i, s);
+        }
+    }
 
-  /**
-   * If node {@code s} is the i-th finger of this node,
-   * update this node's finger table with {@code s}
-   *
-   * Defined in [1], Figure 6
-   *
-   * @param s The should-be i-th finger of this node
-   * @param i The index of {@code s} in this node's finger table
-   */
-  void updateFingerTable(ChordNode s, int i);
+    /* ------------------ Data placement & transfer ------------------ */
 
-  /**
-   * Called on this {@link ChordNode} if it wishes to join the {@link ChordNetwork}. {@code nprime} references
-   * another {@link ChordNode} that is already member of the {@link ChordNetwork}.
-   *
-   * Required for dynamic {@link ChordNetwork} mode. Since in that mode {@link ChordNode}s stabilize the network
-   * periodically, this method simply sets its successor and waits for stabilization to do the rest.
-   *
-   * Defined in [1], Figure 7
-   *
-   * @param nprime Arbitrary {@link ChordNode} that is part of the {@link ChordNetwork} this {@link ChordNode} wishes to join.
-   */
-  void joinOnly(ChordNode nprime);
+    @Override
+    protected ChordNode lookupNodeForItem(String key) {
+        var hf = getNetwork().getHashFunction();
+        var circle = getNetwork().getIdentifierCircle();
+        Identifier kid = circle.getIdentifierAt(hf.hash(key) % getNetwork().size());
+        return findSuccessor(this, kid);
+    }
 
-  /**
-   * Called periodically in order to verify this node's immediate successor and inform it about this
-   * {@link ChordNode}'s presence,
-   *
-   * Defined in [1], Figure 7
-   */
-  void stabilize();
+    /** Move keys for which this node is now responsible: keys in (predecessor, this] */
+    private void moveKeysFromSuccessor() {
+        ChordNode succ = successor();
+        if (!(succ instanceof AbstractChordPeer)) return; // safety
+        Map<String,String> succDump = ((AbstractChordPeer) succ).dump();
+        for (Map.Entry<String,String> e : succDump.entrySet()) {
+            String k = e.getKey();
+            String v = e.getValue();
+            if (lookupNodeForItem(k) == this) {
+                // store locally via API (will be local because lookup resolves to this)
+                this.store(this, k, v);
+                // delete from successor
+                succ.delete(this, k);
+            }
+        }
+    }
 
-  /**
-   * Called by {@code nprime} if it thinks it might be this {@link ChordNode}'s predecessor. Updates predecessor
-   * pointers accordingly, if required.
-   *
-   * Defined in [1], Figure 7
-   *
-   * @param nprime The alleged predecessor of this {@link ChordNode}
-   */
-  void notify(ChordNode nprime);
+    /* ------------------ Helpers ------------------ */
 
-  /**
-   * Called periodically in order to refresh entries in this {@link ChordNode}'s {@link FingerTable}.
-   *
-   * Defined in [1], Figure 7
-   */
-  void fixFingers();
+    private boolean inOpenInterval(Identifier x, Identifier a, Identifier b) {
+        // (a, b) on the identifier circle
+        return IdentifierCircularInterval.createOpen(a, b).contains(x);
+    }
 
-  /**
-   * Called periodically in order to check activity of this {@link ChordNode}'s predecessor.
-   *
-   * Not part of [1]. Required for dynamic network to handle node failure.
-   */
-  void checkPredecessor();
-
-  /**
-   * Called periodically in order to check activity of this {@link ChordNode}'s successor.
-   *
-   * Not part of [1]. Required for dynamic network to handle node failure.
-   */
-  void checkSuccessor();
+    private boolean inRightClosedInterval(Identifier x, Identifier a, Identifier b) {
+        // (a, b] on the identifier circle
+        return IdentifierCircularInterval.createLeftOpen(a, b).containsInclusiveRight(x);
+    }
 }
