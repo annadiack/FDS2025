@@ -103,26 +103,30 @@ public abstract class AbstractOracleXaBank {
     public XAResource getXaResource() {
         return xaResource;
     }
+	//added new method
+	public abstract void deposit(String iban, float amount) throws SQLException;
 
+	public Xid startTransaction() throws XAException {
+	    final Xid xid = this.getXid();
+	    xaResource.start(xid, XAResource.TMNOFLAGS);
+	    return xid;
+	}
 
-    public Xid startTransaction() throws XAException {
-        final Xid xid = this.getXid();
-        this.getXaResource().start(xid, XAResource.TMNOFLAGS);
-        return xid;
-    }
+	public Xid startTransaction(final Xid globalTransactionId) throws XAException {
+	    final Xid xid = this.getXid(globalTransactionId);
+	    xaResource.start(xid, XAResource.TMJOIN);
+	    return xid;
+	}
 
-
-    public Xid startTransaction( final Xid globalTransactionId ) throws XAException {
-        final Xid xid = this.getXid( globalTransactionId );
-        this.getXaResource().start(xid, XAResource.TMNOFLAGS);
-        return xid;
-    }
-
-
-    public void endTransaction( final Xid transactionId, final boolean rollback ) throws XAException {
-        this.getXaResource().end(transactionId, rollback ? XAResource.TMFAIL : XAResource.TMSUCCESS);
-    }
-
+	public void endTransaction(final Xid transactionId, final boolean rollback) throws XAException {
+	    xaResource.end(transactionId, XAResource.TMSUCCESS);
+    
+	    if (rollback) {
+	        xaResource.rollback(transactionId);
+	    } else {
+	        xaResource.commit(transactionId, false);
+	    }
+	}
 
     public Xid getXid() throws XAException {
         return this.getXid( getNewGlobalTransactionId() );

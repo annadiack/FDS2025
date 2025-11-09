@@ -1,0 +1,4 @@
+4.2
+Answer:
+Question 1 b):
+Presumed Abort 2PC optimizes the abort path by assuming abort as the default in recovery, reducing forced log writes/messages when rollbacks are frequent. In our banking transfer, the common case is commit, so PA offers little benefit (Presumed Commit would be a better fit, but is not part of this question). Conceptually, PA would change logging/assumptions around the decision right after prepare and during recovery. Transfer of Coordination 2PC hands over the coordinator role after all parties are prepared, so a participant drives GLOBAL_COMMIT and ACK collection. With only two banks and a very short decision phase, the load/fault-tolerance benefits are minimal, and standard JDBC XA does not support implementing ToC. We therefore annotate the post-prepare, pre-commit location where ToC would conceptually occur, but we wouldn’t implement it.

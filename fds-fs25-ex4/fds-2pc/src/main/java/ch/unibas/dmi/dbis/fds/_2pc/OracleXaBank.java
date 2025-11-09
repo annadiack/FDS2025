@@ -2,6 +2,11 @@ package ch.unibas.dmi.dbis.fds._2pc;
 
 
 import java.sql.SQLException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import javax.transaction.xa.XAException;
+import javax.transaction.xa.Xid;
 
 
 /**
@@ -18,17 +23,19 @@ public class OracleXaBank extends AbstractOracleXaBank {
 
 
     @Override
-     public float getBalance(final String iban) throws SQLException {
-         try (var c = this.getXaConnection().getConnection();
-              var ps = c.prepareStatement("SELECT balance FROM account WHERE iban = ?")) {
-             ps.setString(1, iban);
-             try (var rs = ps.executeQuery()) {
-                 if (!rs.next()) return Float.NaN;
-                 return rs.getFloat(1);
-             }
-         }
-     }
-
+    public float getBalance(final String iban) throws SQLException {
+        try (Connection conn = this.getXaConnection().getConnection();
+             PreparedStatement stmt = conn.prepareStatement("SELECT balance FROM account WHERE iban = ?")) {
+            stmt.setString(1, iban);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getFloat("balance");
+            } else {
+                throw new SQLException("Account not found: " + iban);
+            }
+        }
+    }
+    
      /**
       * Distributed transfer using XA 2PC:
       *  - THIS bank debits (source).
@@ -39,95 +46,78 @@ public class OracleXaBank extends AbstractOracleXaBank {
       *  - Table: account(iban PRIMARY KEY, balance NUMERIC)
       *  - Capacity guard for destination (<= 15000) enforced explicitly here.
       */
-     @Override
-     public void transfer(final AbstractOracleXaBank TO_BANK,
-                          final String ibanFrom, final String ibanTo, final float value) {
-         Xid xidFrom = null, xidTo = null;
+ 	    @Override
+ 	    public void transfer(final AbstractOracleXaBank TO_BANK, final String ibanFrom, final String ibanTo, final float value) {
+ 	        Xid xidFrom = null;
+ 	        Xid xidTo = null;
+        
+ 	        try {
+ 	            // Start global transaction
+ 	            Xid globalXid = this.startTransaction();
+ 	            xidFrom = globalXid;
+ 	            xidTo = TO_BANK.startTransaction(globalXid);
 
-         try {
-             // 1) Start FROM branch with a NEW global XID
-             xidFrom = this.startTransaction();
+ 	            // Execute withdraw operation
+ 	            withdraw(ibanFrom, value);
+            
+ 	            // Execute deposit operation on target bank
+ 	            TO_BANK.deposit(ibanTo, value);
 
-             // 2) Start TO branch with SAME global id (different branch qualifier on TO bank)
-             xidTo = TO_BANK.startTransaction(xidFrom);
+ 	            // Phase 1: Prepare (2PC - First Phase)
+ 	            int prepareResultFrom = this.getXaResource().prepare(xidFrom);
+ 	            int prepareResultTo = TO_BANK.getXaResource().prepare(xidTo);
 
-             // 3) Business operations under XA control (no local commit!)
+ 	            // Phase 2: Commit (2PC - Second Phase)
+ 	            if (prepareResultFrom == XAResource.XA_OK && prepareResultTo == XAResource.XA_OK) {
+ 	                this.getXaResource().commit(xidFrom, false);
+ 	                TO_BANK.getXaResource().commit(xidTo, false);
+ 	                System.out.println("Transaction committed successfully");
+ 	            } else {
+ 	                throw new XAException("Prepare phase failed - one or both branches returned non-XA_OK");
+ 	            }
 
-             // FROM side: debit with sufficient-funds guard
-             try (var cFrom = this.getXaConnection().getConnection()) {
-                 cFrom.setAutoCommit(false);
-                 try (var ps = cFrom.prepareStatement(
-                         "UPDATE account SET balance = balance - ? " +
-                         "WHERE iban = ? AND balance >= ?")) {
-                     ps.setFloat(1, value);
-                     ps.setString(2, ibanFrom);
-                     ps.setFloat(3, value);
-                     final int updated = ps.executeUpdate();
-                     if (updated != 1) {
-                         throw new SQLException("Debit failed: missing account or insufficient funds.");
-                     }
-                 }
-             }
+ 	        } catch (Exception e) {
+ 	            // Rollback on any error (Atomicity guarantee)
+ 	            try {
+ 	                if (xidFrom != null) this.getXaResource().rollback(xidFrom);
+ 	            } catch (XAException ex) {
+ 	                System.err.println("Error rolling back source bank transaction: " + ex.getMessage());
+ 	            }
+ 	            try {
+ 	                if (xidTo != null) TO_BANK.getXaResource().rollback(xidTo);
+ 	            } catch (XAException ex) {
+ 	                System.err.println("Error rolling back target bank transaction: " + ex.getMessage());
+ 	            }
+ 	            throw new RuntimeException("Transfer failed: " + e.getMessage(), e);
+ 	        }
+ 	    }
 
-             // TO side: credit with capacity guard (<= 15000)
-             try (var cTo = TO_BANK.getXaConnection().getConnection()) {
-                 cTo.setAutoCommit(false);
+ 	    // Helper method for withdraw operation
+ 	    private void withdraw(String iban, float amount) throws SQLException {
+ 	        try (Connection conn = this.getXaConnection().getConnection();
+ 	             PreparedStatement stmt = conn.prepareStatement("UPDATE account SET balance = balance - ? WHERE iban = ? AND balance >= ?")) {
+ 	            stmt.setFloat(1, amount);
+ 	            stmt.setString(2, iban);
+ 	            stmt.setFloat(3, amount);
+            
+ 	            int rowsAffected = stmt.executeUpdate();
+ 	            if (rowsAffected == 0) {
+ 	                throw new SQLException("Withdraw failed: Insufficient funds or account not found for IBAN: " + iban);
+ 	            }
+ 	        }
+ 	    }
 
-                 float current;
-                 try (var ps = cTo.prepareStatement(
-                         "SELECT balance FROM account WHERE iban = ? FOR UPDATE")) {
-                     ps.setString(1, ibanTo);
-                     try (var rs = ps.executeQuery()) {
-                         if (!rs.next()) {
-                             throw new SQLException("Credit failed: destination account not found.");
-                         }
-                         current = rs.getFloat(1);
-                     }
-                 }
-
-                 if (current + value > 15000.0f) {
-                     throw new SQLException("Credit failed: would exceed account capacity.");
-                 }
-
-                 try (var ps = cTo.prepareStatement(
-                         "UPDATE account SET balance = balance + ? WHERE iban = ?")) {
-                     ps.setFloat(1, value);
-                     ps.setString(2, ibanTo);
-                     final int updated = ps.executeUpdate();
-                     if (updated != 1) {
-                         throw new SQLException("Credit failed: update did not affect exactly one row.");
-                     }
-                 }
-             }
-
-             // 4) End both branches successfully (ready to prepare)
-             this.endTransaction(xidFrom, false);
-             TO_BANK.endTransaction(xidTo, false);
-
-             // 5) PREPARE both branches
-             final XAResource xaFrom = this.getXaResource();
-             final XAResource xaTo   = TO_BANK.getXaResource();
-             final int pFrom = xaFrom.prepare(xidFrom);
-             final int pTo   = xaTo.prepare(xidTo);
-
-             // 6) DECIDE: commit if both prepared OK, else rollback both
-             if (pFrom == XAResource.XA_OK && pTo == XAResource.XA_OK) {
-                 xaFrom.commit(xidFrom, false);   // two-phase commit (onePhase=false)
-                 xaTo.commit(xidTo, false);
-             } else {
-                 xaFrom.rollback(xidFrom);
-                 xaTo.rollback(xidTo);
-                 throw new RuntimeException("Prepare phase failed — rolled back both branches.");
-             }
-
-         } catch (Exception e) {
-             // Best-effort cleanup on ANY error:
-             try { if (xidFrom != null) this.endTransaction(xidFrom, true); } catch (Exception ignore) {}
-             try { if (xidTo   != null) TO_BANK.endTransaction(xidTo, true); } catch (Exception ignore) {}
-             try { if (xidFrom != null) this.getXaResource().rollback(xidFrom); } catch (Exception ignore) {}
-             try { if (xidTo   != null) TO_BANK.getXaResource().rollback(xidTo); } catch (Exception ignore) {}
-
-             throw new RuntimeException("Distributed transfer failed and was rolled back.", e);
-         }
-    }
-}
+ 	    // Helper method for deposit operation  
+ 	    public void deposit(String iban, float amount) throws SQLException {
+ 	        try (Connection conn = this.getXaConnection().getConnection();
+ 	             PreparedStatement stmt = conn.prepareStatement("UPDATE account SET balance = balance + ? WHERE iban = ?")) {
+ 	            stmt.setFloat(1, amount);
+ 	            stmt.setString(2, iban);
+            
+ 	            int rowsAffected = stmt.executeUpdate();
+ 	            if (rowsAffected == 0) {
+ 	                throw new SQLException("Deposit failed: Account not found for IBAN: " + iban);
+ 	            }
+ 	        }
+ 	    }
+ 	}
