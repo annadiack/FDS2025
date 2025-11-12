@@ -1,0 +1,8 @@
+As we increase the number of OpenMP threads, the program runs much faster. The runtime drops from about 3.14 seconds with a single thread to just 0.73 seconds when using 8 threads. That’s a speedup of around 4.3 times.
+However, this improvement isn’t perfect—it’s less than the ideal 8× speedup—and things stop getting faster once we go past 8 threads.
+This happens because the program is memory-bound: all threads repeatedly access the same large array, so the shared memory bandwidth—not the CPU cores—becomes the bottleneck.
+Task 4's runtime (≈ 0.74 → 0.73 s) was slightly decreased by using the nowait clause by removing an unnecessary synchronization barrier between separate loops.
+However, the benefit is minimal because the synchronization overhead is insignificant in comparison to the memory-access time.
+
+Efficiency falls below 30% and performance virtually stops getting better when scaling to 16 threads.
+This shows that all of the memory channels in the system are being used and that adding more threads will only result in higher overhead.
