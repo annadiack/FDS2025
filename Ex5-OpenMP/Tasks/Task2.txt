@@ -1,0 +1,138 @@
+Last login: Wed Nov 12 13:26:54 on ttys000
+annadiack@dyn-3-96-126 ~ % cd Desktop 
+annadiack@dyn-3-96-126 Desktop % cd FDS2025 
+annadiack@dyn-3-96-126 FDS2025 % cd Ex5-OpenMP 
+annadiack@dyn-3-96-126 Ex5-OpenMP % ls
+Ex5-OpenMP.pdf	jobscript	sequential.c
+annadiack@dyn-3-96-126 Ex5-OpenMP % scp sequential.c diaann00@cl-login.dmi.unibas.ch:~/FDS_ex5/
+
+diaann00@cl-login.dmi.unibas.ch's password: 
+sequential.c                                  100%  909   161.1KB/s   00:00    
+annadiack@dyn-3-96-126 Ex5-OpenMP % ssh diaann00@cl-login.dmi.unibas.ch
+
+diaann00@cl-login.dmi.unibas.ch's password: 
+Last login: Wed Nov 12 13:22:47 2025 from dyn-3-96-126.mobile.unibas.ch
+#------------------------- DMI unibas.ch --------------------------#
+#                                                                  #
+# ################################################################ #
+#      OS:             CentOS 7.9                                  #
+#      Queing System:  Slurm                                       #
+#      Documentation:                                              #
+# ################################################################ #
+#                                                                  #
+# This is a centrally managed system. Local modifications can only # 
+# be done by the administrators or MUST be reported to the         #
+# administrators.                                                  #
+#                  support-its@unibas.ch                           #
+#           with an indication to forward to "DMI".                #
+#                                                                  #
+# Please respect others. Misuse of the system will be pursued.     #
+#                                                                  #
+#                                                        (ansible) #
+#------------------------- DMI unibas.ch --------------------------#
+[diaann00@dmi-cl-login ~]$ ls
+FDS_ex5  job.sh  perl5  slurm-2453445.out  slurm-2453446.out
+[diaann00@dmi-cl-login ~]$ cd FDS_ex5/
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+sequential.c
+[diaann00@dmi-cl-login FDS_ex5]$ module load GCC/14.2.0
+[diaann00@dmi-cl-login FDS_ex5]$ gcc -O3 sequential.c -o sequential
+/opt/apps/easybuild/software/binutils/2.42-GCCcore-14.2.0/bin/ld: /tmp/ccMeZ0lj.o: in function `main':
+sequential.c:(.text.startup+0x21): undefined reference to `omp_get_wtime'
+/opt/apps/easybuild/software/binutils/2.42-GCCcore-14.2.0/bin/ld: sequential.c:(.text.startup+0xea): undefined reference to `omp_get_wtime'
+/opt/apps/easybuild/software/binutils/2.42-GCCcore-14.2.0/bin/ld: sequential.c:(.text.startup+0x14a): undefined reference to `omp_get_max_threads'
+collect2: error: ld returned 1 exit status
+[diaann00@dmi-cl-login FDS_ex5]$ sbatch job_seq.sh
+sbatch: error: Unable to open file job_seq.sh
+[diaann00@dmi-cl-login FDS_ex5]$ nano job_seq.sh
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh  sequential.c
+[diaann00@dmi-cl-login FDS_ex5]$ sbatch job_seq.sh
+Submitted batch job 2453448
+[diaann00@dmi-cl-login FDS_ex5]$ squeue --me
+             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh  sequential.c  slurm-2453448.out
+[diaann00@dmi-cl-login FDS_ex5]$ cat slurm-2453448.out
+slurmstepd: error: execve(): /users/stud/d/diaann00/FDS_ex5/./sequential: No such file or directory
+srun: error: cl-node001: task 0: Exited with exit code 2
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh  sequential.c  slurm-2453448.out
+[diaann00@dmi-cl-login FDS_ex5]$ module load GCC/14.2.0
+[diaann00@dmi-cl-login FDS_ex5]$ gcc -O3 sequential.c -o sequential
+/opt/apps/easybuild/software/binutils/2.42-GCCcore-14.2.0/bin/ld: /tmp/cctTeizR.o: in function `main':
+sequential.c:(.text.startup+0x21): undefined reference to `omp_get_wtime'
+/opt/apps/easybuild/software/binutils/2.42-GCCcore-14.2.0/bin/ld: sequential.c:(.text.startup+0xea): undefined reference to `omp_get_wtime'
+/opt/apps/easybuild/software/binutils/2.42-GCCcore-14.2.0/bin/ld: sequential.c:(.text.startup+0x14a): undefined reference to `omp_get_max_threads'
+collect2: error: ld returned 1 exit status
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh  sequential.c  slurm-2453448.out
+[diaann00@dmi-cl-login FDS_ex5]$ sbatch job_seq.sh
+Submitted batch job 2453449
+[diaann00@dmi-cl-login FDS_ex5]$ cat slurm-<neueJobID>.out
+-bash: neueJobID: No such file or directory
+[diaann00@dmi-cl-login FDS_ex5]$ cat slurm-2453449.out
+slurmstepd: error: execve(): /users/stud/d/diaann00/FDS_ex5/./sequential: No such file or directory
+srun: error: cl-node001: task 0: Exited with exit code 2
+[diaann00@dmi-cl-login FDS_ex5]$ cat slurm-2453449.outls
+cat: slurm-2453449.outls: No such file or directory
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh  sequential.c  slurm-2453448.out  slurm-2453449.out
+[diaann00@dmi-cl-login FDS_ex5]$ cat slurm-2453449.out
+slurmstepd: error: execve(): /users/stud/d/diaann00/FDS_ex5/./sequential: No such file or directory
+srun: error: cl-node001: task 0: Exited with exit code 2
+[diaann00@dmi-cl-login FDS_ex5]$ cd ..
+[diaann00@dmi-cl-login ~]$ ls
+FDS_ex5  job.sh  perl5  slurm-2453445.out  slurm-2453446.out
+[diaann00@dmi-cl-login ~]$ cd FDS_ex5/
+[diaann00@dmi-cl-login FDS_ex5]$ cat slurm-2453449.out
+slurmstepd: error: execve(): /users/stud/d/diaann00/FDS_ex5/./sequential: No such file or directory
+srun: error: cl-node001: task 0: Exited with exit code 2
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh  sequential.c  slurm-2453448.out  slurm-2453449.out
+[diaann00@dmi-cl-login FDS_ex5]$ cd ..
+[diaann00@dmi-cl-login ~]$ ls
+FDS_ex5  job.sh  perl5  slurm-2453445.out  slurm-2453446.out
+[diaann00@dmi-cl-login ~]$ cd ..
+[diaann00@dmi-cl-login d]$ ld
+ld: no input files
+[diaann00@dmi-cl-login d]$ ls
+datjij00.tgz  diesas00.tgz  dolsim00      dreher0000  duvor0000
+dernor00.tgz  dika0000      domole00.tgz  du0003      duzyne60
+diaann00      dinica0000    dosku0000     dudler0001
+[diaann00@dmi-cl-login d]$ cd diaann00
+[diaann00@dmi-cl-login ~]$ ls
+FDS_ex5  job.sh  perl5  slurm-2453445.out  slurm-2453446.out
+[diaann00@dmi-cl-login ~]$ module load GCC/14.2.0
+[diaann00@dmi-cl-login ~]$ ls
+FDS_ex5  job.sh  perl5  slurm-2453445.out  slurm-2453446.out
+[diaann00@dmi-cl-login ~]$ gcc -O3 sequential.c -o sequential
+cc1: fatal error: sequential.c: No such file or directory
+compilation terminated.
+[diaann00@dmi-cl-login ~]$ ls
+FDS_ex5  job.sh  perl5  slurm-2453445.out  slurm-2453446.out
+[diaann00@dmi-cl-login ~]$ cd FDS_ex5/
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh  sequential.c  slurm-2453448.out  slurm-2453449.out
+[diaann00@dmi-cl-login FDS_ex5]$ module load GCC/14.2.0
+[diaann00@dmi-cl-login FDS_ex5]$ gcc -O3 sequential.c -o sequential
+/opt/apps/easybuild/software/binutils/2.42-GCCcore-14.2.0/bin/ld: /tmp/ccGva97s.o: in function `main':
+sequential.c:(.text.startup+0x21): undefined reference to `omp_get_wtime'
+/opt/apps/easybuild/software/binutils/2.42-GCCcore-14.2.0/bin/ld: sequential.c:(.text.startup+0xea): undefined reference to `omp_get_wtime'
+/opt/apps/easybuild/software/binutils/2.42-GCCcore-14.2.0/bin/ld: sequential.c:(.text.startup+0x14a): undefined reference to `omp_get_max_threads'
+collect2: error: ld returned 1 exit status
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh  sequential.c  slurm-2453448.out  slurm-2453449.out
+[diaann00@dmi-cl-login FDS_ex5]$ gcc -O3 -fopenmp sequential.c -o sequential
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh  sequential  sequential.c  slurm-2453448.out  slurm-2453449.out
+[diaann00@dmi-cl-login FDS_ex5]$ sbatch job_seq.sh
+Submitted batch job 2453450
+[diaann00@dmi-cl-login FDS_ex5]$ sbatch job_seq.sh
+Submitted batch job 2453451
+[diaann00@dmi-cl-login FDS_ex5]$ cat slurm-2453451.out
+variance       = 8.25
+total time (s) = 5.50
+num threads    = 1
+
+[diaann00@dmi-cl-login FDS_ex5]$ 

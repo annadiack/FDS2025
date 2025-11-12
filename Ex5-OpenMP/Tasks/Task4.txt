@@ -1,0 +1,160 @@
+Last login: Wed Nov 12 13:53:02 on ttys002
+annadiack@dyn-3-96-126 ~ % ls                                                  
+Applications
+B5A1.png
+Creative Cloud Files
+Desktop
+Documents
+Downloads
+Hardware
+IdeaProjects
+Library
+MMM-Admin-Interface
+Movies
+Music
+Pictures
+Public
+Sites
+Tutorials
+Tweets-Dogecoin.csv.csv
+Untitled.bib
+Untitled.ipynb
+Untitled1.ipynb
+Untitled2.ipynb
+Untitled3.ipynb
+Untitled4.ipynb
+Untitled5.ipynb
+VirtualBox VMs
+anna.diack@unibas.ch Creative Cloud Files (enterprise)
+audio.aiff
+cheatsheet_analysis2.docx
+code
+exam-gdp-1-2.ipynb
+ganttproject.log
+iCloud Drive (Archiv)
+iCloud Drive (Archiv) - 1
+iCloud Drive (Archiv) - 2
+iCloud Drive (Archiv) - 3
+instagram-hacking-tool
+jabref
+java0.log
+nltk_data
+opt
+~$skIIEssay.docx
+annadiack@dyn-3-96-126 ~ % ssh diaann00@cl-login.dmi.unibas.ch
+
+diaann00@cl-login.dmi.unibas.ch's password: 
+Last failed login: Wed Nov 12 13:56:55 CET 2025 from dyn-3-96-126.mobile.unibas.ch on ssh:notty
+There were 5 failed login attempts since the last successful login.
+Last login: Wed Nov 12 13:31:52 2025 from dyn-3-96-126.mobile.unibas.ch
+#------------------------- DMI unibas.ch --------------------------#
+#                                                                  #
+# ################################################################ #
+#      OS:             CentOS 7.9                                  #
+#      Queing System:  Slurm                                       #
+#      Documentation:                                              #
+# ################################################################ #
+#                                                                  #
+# This is a centrally managed system. Local modifications can only # 
+# be done by the administrators or MUST be reported to the         #
+# administrators.                                                  #
+#                  support-its@unibas.ch                           #
+#           with an indication to forward to "DMI".                #
+#                                                                  #
+# Please respect others. Misuse of the system will be pursued.     #
+#                                                                  #
+#                                                        (ansible) #
+#------------------------- DMI unibas.ch --------------------------#
+[diaann00@dmi-cl-login ~]$ ls
+FDS_ex5  job.sh  perl5  slurm-2453445.out  slurm-2453446.out
+[diaann00@dmi-cl-login ~]$ cd FDS_ex5/
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh  sequential.c       slurm-2453449.out  slurm-2453451.out
+sequential  slurm-2453448.out  slurm-2453450.out
+[diaann00@dmi-cl-login FDS_ex5]$ cd ~/FDS_ex5
+[diaann00@dmi-cl-login FDS_ex5]$ cp sequential.c parallel_spmd.c
+[diaann00@dmi-cl-login FDS_ex5]$ 
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh       sequential    slurm-2453448.out  slurm-2453450.out
+parallel_spmd.c  sequential.c  slurm-2453449.out  slurm-2453451.out
+[diaann00@dmi-cl-login FDS_ex5]$ nano parallel_spmd.c
+[diaann00@dmi-cl-login FDS_ex5]$ nano parallel_spmd.c
+[diaann00@dmi-cl-login FDS_ex5]$ gcc -O3 -fopenmp parallel_for.c -o parallel_for
+gcc: error: parallel_for.c: No such file or directory
+gcc: fatal error: no input files
+compilation terminated.
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh       sequential    slurm-2453448.out  slurm-2453450.out
+parallel_spmd.c  sequential.c  slurm-2453449.out  slurm-2453451.out
+[diaann00@dmi-cl-login FDS_ex5]$ module load GCC/14.2.0
+[diaann00@dmi-cl-login FDS_ex5]$ gcc -O3 -fopenmp parallel_spmd.c -o parallel_spmd
+[diaann00@dmi-cl-login FDS_ex5]$ sbatch job_spmd.sh
+sbatch: error: Unable to open file job_spmd.sh
+[diaann00@dmi-cl-login FDS_ex5]$ nano job_spmd.sh
+[diaann00@dmi-cl-login FDS_ex5]$ sbatch job_spmd.sh
+Submitted batch job 2453467
+[diaann00@dmi-cl-login FDS_ex5]$ squeue --me
+             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+[diaann00@dmi-cl-login FDS_ex5]$ cat slurm-2453452.out
+cat: slurm-2453452.out: No such file or directory
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh     parallel_spmd.c  slurm-2453448.out  slurm-2453451.out
+job_spmd.sh    sequential       slurm-2453449.out  slurm-2453467.out
+parallel_spmd  sequential.c     slurm-2453450.out
+[diaann00@dmi-cl-login FDS_ex5]$ cat slurm-2453467.out
+variance        = 8.25
+total time (s)  = 0.74
+num threads     = 8
+
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh     parallel_spmd.c  slurm-2453448.out  slurm-2453451.out
+job_spmd.sh    sequential       slurm-2453449.out  slurm-2453467.out
+parallel_spmd  sequential.c     slurm-2453450.out
+[diaann00@dmi-cl-login FDS_ex5]$ module load GCC/14.2.0
+[diaann00@dmi-cl-login FDS_ex5]$ gcc -O3 -fopenmp parallel_spmd.c -o parallel_spmd
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh     parallel_spmd.c  slurm-2453448.out  slurm-2453451.out
+job_spmd.sh    sequential       slurm-2453449.out  slurm-2453467.out
+parallel_spmd  sequential.c     slurm-2453450.out
+[diaann00@dmi-cl-login FDS_ex5]$ nano parallel_nowait.c
+[diaann00@dmi-cl-login FDS_ex5]$ module load GCC/14.2.0
+[diaann00@dmi-cl-login FDS_ex5]$ gcc -O3 -fopenmp parallel_nowait.c -o parallel_nowait
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh         parallel_spmd    slurm-2453448.out  slurm-2453467.out
+job_spmd.sh        parallel_spmd.c  slurm-2453449.out
+parallel_nowait    sequential       slurm-2453450.out
+parallel_nowait.c  sequential.c     slurm-2453451.out
+[diaann00@dmi-cl-login FDS_ex5]$ ls -l
+total 96
+-rw-r--r--. 1 diaann00 unibas-users   244 Nov 12 13:33 job_seq.sh
+-rw-r--r--. 1 diaann00 unibas-users   203 Nov 12 15:10 job_spmd.sh
+-rwxr-xr-x. 1 diaann00 unibas-users 16648 Nov 12 15:26 parallel_nowait
+-rw-r--r--. 1 diaann00 unibas-users  1195 Nov 12 15:26 parallel_nowait.c
+-rwxr-xr-x. 1 diaann00 unibas-users 16672 Nov 12 15:13 parallel_spmd
+-rw-r--r--. 1 diaann00 unibas-users  1077 Nov 12 14:10 parallel_spmd.c
+-rwxr-xr-x. 1 diaann00 unibas-users 16376 Nov 12 13:48 sequential
+-rw-r--r--. 1 diaann00 unibas-users   909 Nov 12 13:30 sequential.c
+-rw-r--r--. 1 diaann00 unibas-users   157 Nov 12 13:34 slurm-2453448.out
+-rw-r--r--. 1 diaann00 unibas-users   157 Nov 12 13:38 slurm-2453449.out
+-rw-r--r--. 1 diaann00 unibas-users    64 Nov 12 13:49 slurm-2453450.out
+-rw-r--r--. 1 diaann00 unibas-users    64 Nov 12 13:51 slurm-2453451.out
+-rw-r--r--. 1 diaann00 unibas-users    67 Nov 12 15:10 slurm-2453467.out
+[diaann00@dmi-cl-login FDS_ex5]$ ls
+job_seq.sh         parallel_spmd    slurm-2453448.out  slurm-2453467.out
+job_spmd.sh        parallel_spmd.c  slurm-2453449.out
+parallel_nowait    sequential       slurm-2453450.out
+parallel_nowait.c  sequential.c     slurm-2453451.out
+[diaann00@dmi-cl-login FDS_ex5]$ nano job_nowait.sh
+[diaann00@dmi-cl-login FDS_ex5]$ chmod +x job_nowait.sh
+[diaann00@dmi-cl-login FDS_ex5]$ sbatch job_nowait.sh
+Submitted batch job 2453475
+[diaann00@dmi-cl-login FDS_ex5]$ squeue --me
+             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+[diaann00@dmi-cl-login FDS_ex5]$ cat slurm-2453478.out
+cat: slurm-2453478.out: No such file or directory
+[diaann00@dmi-cl-login FDS_ex5]$ cat slurm-2453475.out
+variance        = 8.25
+total time (s)  = 0.73
+num threads     = 8
+
+[diaann00@dmi-cl-login FDS_ex5]$ 
