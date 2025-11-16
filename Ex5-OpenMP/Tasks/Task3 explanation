@@ -1,0 +1,23 @@
+The program prints several OpenMP runtime parameters before entering the parallel region:
+
+omp_get_num_procs() returns the number of CPU cores available to the process.
+This value corresponds to the number of CPUs allocated through Slurm via cpus-per-task.
+
+omp_get_max_threads() returns the maximum number of OpenMP threads that the program may spawn.
+
+
+Inside the parallel region, every thread prints:
+its thread ID (omp_get_thread_num()), the total number of threads in the parallel region (omp_get_num_threads()), 
+and the process ID (getpid()), which allows us to distinguish between multiple processes when ntasks-per-node = 2.
+
+
+The final output contains multiple lines printed by different threads and possibly multiple processes. The lines appear in no particular order because:
+
+OpenMP threads run concurrently.
+There is no synchronization around the printf call, so threads print whenever they reach that point.
+
+Multiple processes run concurrently when ntasks-per-node = 2.
+Both processes write to the same output file at the same time, interleaving their output unpredictably.
+
+The operating system’s scheduler determines execution order.
+Print statements compete for shared stdout, resulting in nondeterministic ordering.
