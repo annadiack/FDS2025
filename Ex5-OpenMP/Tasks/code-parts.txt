@@ -1,0 +1,162 @@
+Task 1:
+
+job.sh
+
+#!/bin/bash
+#SBATCH --job-name=my_job          # Job-Name
+#SBATCH --partition=xeon           # miniHPC-Hauptpartition
+#SBATCH --hint=nomultithread       # SMT/HT ausschalten
+#SBATCH --exclusive                # Exklusive Nutzung
+#SBATCH --time=00:02:00            # Laufzeitlimit
+#SBATCH --nodes=1                  # 1 Knoten
+#SBATCH --ntasks-per-node=1        # 1 Prozess
+#SBATCH --cpus-per-task=1          # 1 Thread
+
+---------------------------------------------------------------
+Task 2:
+
+#!/bin/bash
+#SBATCH --job-name=seq_run
+#SBATCH --partition=xeon
+#SBATCH --time=00:02:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+
+module load GCC/14.2.0
+srun ./sequential
+---------------------------------------------------------------
+Task 3:
+#include <stdio.h>
+#include <stdlib.h>
+#include <omp.h>
+
+int main(void) {
+    const size_t n = 1000000000;
+    double *data = malloc(n * sizeof *data);
+    if (!data) { return 1; }
+
+    double start = omp_get_wtime();
+
+    // LOOP 1: create synthetic data
+    #pragma omp parallel for
+    for (size_t i = 0; i < n; ++i) {
+        data[i] = i % 10;
+    }
+
+    // LOOP 2: compute sum
+    double sum = 0.0;
+    #pragma omp parallel for reduction(+:sum)
+    for (size_t i = 0; i < n; ++i) {
+        sum += data[n - 1 - i];
+    }
+
+    // LOOP 3: compute sum of squares
+    double sum_sq = 0.0;
+    #pragma omp parallel for reduction(+:sum_sq)
+    for (size_t i = 0; i < n; ++i) {
+        sum_sq += data[i] * data[i];
+    }
+
+    double end = omp_get_wtime();
+
+    double mean = sum / (double)n;
+    double mean_sq = sum_sq / (double)n;
+    double variance = mean_sq - mean * mean;
+
+    printf("variance        = %.2f\n", variance);
+    printf("total time (s)  = %.2f\n", end - start);
+    printf("num threads     = %d\n\n", omp_get_max_threads());
+
+    free(data);
+    return 0;
+}
+
+--------------------------
+#!/bin/bash
+#SBATCH --job-name=spmd
+#SBATCH --partition=xeon
+#SBATCH --time=00:02:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=8   # z. B. 8 Threads
+
+module load GCC/14.2.0
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
+srun ./parallel_spmd
+---------------------------------------------------------------
+
+Task 4:
+
+#pragma omp parallel
+{
+  int tid = omp_get_thread_num();
+  double local_sum = 0.0;
+
+  for (size_t i = tid; i < n; i += omp_get_num_threads()) {
+      local_sum += data[i];
+  }
+
+  partial_sum[tid] = local_sum;
+}
+
+----
+#pragma omp parallel for reduction(+:sum)
+for (size_t i = 0; i < n; ++i) {
+    sum += data[n - 1 - i];
+}
+
+-----
+#pragma omp for nowait
+---------
+#include <stdio.h>
+#include <stdlib.h>
+#include <omp.h>
+
+int main(void) {
+    const size_t n = 1000000000;
+    double *data = malloc(n * sizeof *data);
+    if (!data) return 1;
+
+    double start = omp_get_wtime();
+
+    double sum = 0.0, sum_sq = 0.0;
+
+    #pragma omp parallel
+    {
+        // LOOP 1: init data  
+        #pragma omp for
+        for (size_t i = 0; i < n; ++i) {
+            data[i] = i % 10;
+        }
+
+        // LOOP 2: sum        
+        #pragma omp for reduction(+:sum) nowait
+        for (size_t i = 0; i < n; ++i) {
+            sum += data[n - 1 - i];
+        }
+
+        // LOOP 3: sum of squares (darf parallel zu LOOP 2 laufen)
+        #pragma omp for reduction(+:sum_sq)
+        for (size_t i = 0; i < n; ++i) {
+            sum_sq += data[i] * data[i];
+        }
+       }
+
+    double end = omp_get_wtime();
+
+    double mean = sum / (double)n;
+    double mean_sq = sum_sq / (double)n;
+    double variance = mean_sq - mean * mean;
+
+    printf("variance        = %.2f\n", variance);
+    printf("total time (s)  = %.2f\n", end - start);
+    printf("num threads     = %d\n\n", omp_get_max_threads());
+
+    free(data);
+    return 0;
+}
+-------------------------------------------------------------------------
+Task 5:
+grep -H "total time (s)" slurm-*.out | sort
+
