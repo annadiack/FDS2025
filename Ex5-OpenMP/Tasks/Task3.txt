@@ -1,0 +1,24 @@
+Process 18713: omp_get_max_threads() = 2
+Process 18713: Hello World from thread ID 0 of 2
+Process 18713: Hello World from thread ID 1 of 2
+[krishn0005@dmi-cl-login ~]$ cat slurm-2454389.out
+Process 18761: omp_get_num_procs() = 2
+Process 18761: omp_get_max_threads() = 2
+Process 18761: Hello World from thread ID 0 of 2
+Process 18761: Hello World from thread ID 1 of 2
+[krishn0005@dmi-cl-login ~]$ cat slurm-2454390.out
+Process 18810: omp_get_num_procs() = 1
+Process 18810: omp_get_max_threads() = 1
+Process 18810: Hello World from thread ID 0 of 1
+Process 18811: omp_get_num_procs() = 1
+Process 18811: omp_get_max_threads() = 1
+Process 18811: Hello World from thread ID 0 of 1
+[krishn0005@dmi-cl-login ~]$ cat slurm-2454391.out
+Process 18859: omp_get_num_procs() = 2
+Process 18859: omp_get_max_threads() = 2
+Process 18859: Hello World from thread ID 0 of 2
+Process 18859: Hello World from thread ID 1 of 2
+Process 18860: omp_get_num_procs() = 2
+Process 18860: omp_get_max_threads() = 2
+Process 18860: Hello World from thread ID 0 of 2
+Process 18860: Hello World from thread ID 1 of 2
