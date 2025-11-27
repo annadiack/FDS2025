@@ -1,0 +1,7 @@
+sinfo -p xeon -N
+
+lscpu
+
+module load hwloc
+lstopo --no-io --of txt > topo.txt
+cat topo.txt
